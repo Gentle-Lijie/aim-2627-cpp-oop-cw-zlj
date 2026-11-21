@@ -28,13 +28,19 @@ public:
     }
 
     Decision submit(const std::string& order_id, int quantity) {
+        // 数量必须为正整数，非法数量直接拒绝，不触碰任何站点状态。
+        if (quantity <= 0) {
+            return {false, "", "invalid quantity"};
+        }
         for (auto& item : stock_) {
             const std::string& station_id = item.first;
             if (!busy_[station_id]) {
-                item.second -= quantity;
-                if (item.second < 0) {
+                // 先完整校验库存是否充足，再执行扣减与状态更新，
+                // 保证失败派单（如库存不足）不产生任何副作用。
+                if (item.second < quantity) {
                     return {false, "", "insufficient stock"};
                 }
+                item.second -= quantity;
                 busy_[station_id] = true;
                 orders_[station_id] = order_id;
                 return {true, station_id, "accepted"};
